@@ -25,6 +25,7 @@ impl Request {
     pub fn send(self) -> Result<Response, RequestError> {
         let ptr = unsafe { request_host(self.url.as_ptr(), self.url.len() as u32, self.method as u32) };
 
+        crate::log("Received.");
         // Dereference the pointer to HttpResponse safely (inside unsafe block)
         let resp: &HttpResponse = unsafe { &*(ptr as *const HttpResponse) };
 

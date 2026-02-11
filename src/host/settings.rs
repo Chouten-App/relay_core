@@ -1,6 +1,4 @@
-use alloc::{borrow::ToOwned, string::{String, ToString}};
-
-use crate::host::log::log;
+use alloc::{borrow::ToOwned, string::String};
 
 #[derive(Copy, Clone)]
 pub enum SettingValue {
@@ -40,10 +38,6 @@ impl<'a> FromSettingValue<'a> for i32 {
         Some(i32::from_le_bytes(arr))
     }
 }
-
-static MODULE_SETTINGS: [Setting; 1] = [
-    Setting { group: "general", key: "domain", value: SettingValue::Str("https://hianime.to") }
-];
 
 // Generic getter
 pub fn get_setting_in_group<'a, T>(group: &str, key: &str) -> Option<T>

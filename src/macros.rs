@@ -1,6 +1,3 @@
-use crate::alloc::string::ToString;
-use crate::types::ChoutenError;
-
 #[macro_export]
 macro_rules! fail {
     ($msg:expr) => {

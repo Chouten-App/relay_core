@@ -6,6 +6,7 @@ extern crate wee_alloc;
 pub mod host;
 pub mod types;
 pub mod macros;
+pub mod traits;
 
 // pub mod export_macro;
 
@@ -70,12 +71,10 @@ fn panic(info: &PanicInfo) -> ! {
     }
     // calling loop {} will hang the app
     // calling wasm32::unreachable instead
-    unsafe {
-        core::arch::wasm32::unreachable()
-    }
+    core::arch::wasm32::unreachable()
 }
 
 unsafe extern "C" {
-    fn log_host(ptr: *const u8, len: u32);
-    fn request_host(url_ptr: *const u8, url_len: u32, method: u32) -> u32;
+    pub fn log_host(ptr: *const u8, len: u32);
+    pub fn request_host(url_ptr: *const u8, url_len: u32, method: u32) -> u32;
 }
