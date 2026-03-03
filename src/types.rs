@@ -44,11 +44,17 @@ impl ChoutenError {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
+pub struct HttpResponseJson<'a> {
+    #[serde(rename = "statusCode")]
+    pub status_code: u32,
+    pub body: &'a str,
+}
+
 pub struct HttpResponse {
     pub status_code: u32,
-    pub body_ptr: u32,
-    pub body_len: u32,
+    pub body_ptr: *const u8,
+    pub body_len: usize,
 }
 
 #[repr(u32)]
@@ -64,7 +70,8 @@ pub enum RequestMethod {
 #[derive(Copy, Clone, Debug)]
 pub enum RequestError {
     TIMEOUT,
-    UNKNOWN
+    UNKNOWN,
+    InvalidUtf8
 }
 
 impl From<RequestError> for ChoutenError {
@@ -72,6 +79,7 @@ impl From<RequestError> for ChoutenError {
         match err {
             RequestError::TIMEOUT => ChoutenError::network("", "Request timed out"),
             RequestError::UNKNOWN => ChoutenError::network("", "Unknown request error"),
+            RequestError::InvalidUtf8 => ChoutenError::network("", "Invalid UTF8")
         }
     }
 }
