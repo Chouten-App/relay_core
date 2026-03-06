@@ -14,6 +14,39 @@ use core::alloc::Layout;
 use core::panic::PanicInfo;
 use crate::host::log::log;
 
+#[repr(C)]
+pub struct ResponseInfo {
+    pub ptr: u32,
+    pub len: u32,
+}
+
+static mut RESPONSE_PTR: u32 = 0;
+static mut RESPONSE_LEN: u32 = 0;
+
+#[unsafe(no_mangle)]
+pub extern "C" fn store_response(ptr: u32, len: u32) -> u32 {
+    crate::log("store_response CALLED");
+    
+    unsafe {
+        RESPONSE_PTR = ptr;
+        RESPONSE_LEN = len;
+    }
+    
+    // Try reading the data RIGHT NOW inside this function
+    let test_bytes: &[u8] = unsafe {
+        core::slice::from_raw_parts(ptr as *const u8, 10.min(len as usize))
+    };
+    
+    if test_bytes[0] == b'{' {
+        crate::log("Data looks good inside store_response!");
+    } else if test_bytes[0] == 0 {
+        crate::log("Data is NULL inside store_response!");
+    } else {
+        crate::log("Data is corrupted inside store_response!");
+    }
+    
+    1
+}
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;

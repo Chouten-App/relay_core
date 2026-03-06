@@ -1,4 +1,10 @@
+use core::error::Error;
+
+use crate::RESPONSE_LEN;
+use crate::RESPONSE_PTR;
+use crate::ResponseInfo;
 use crate::log_host;
+use crate::store_response;
 use crate::types::ChoutenError;
 use crate::types::HttpResponseJson;
 use crate::types::RequestMethod;
@@ -16,10 +22,6 @@ pub struct Request {
     method: RequestMethod
 }
 
-struct RelayResponse {
-    pub ptr: u32,
-    pub len: u32
-}
 
 impl Request {
     pub fn new(url: &str) -> Self {
@@ -31,37 +33,86 @@ impl Request {
     }
 
     pub fn send(self) -> Result<Response, RequestError> {
-        let ptr = unsafe { request_host(self.url.as_ptr(), self.url.len() as u32, self.method as u32) };
-
-        crate::log("Received");
-        
-        // Dereference the pointer to RelayResponse
-        let relay_resp: &RelayResponse = unsafe { &*(ptr as *const RelayResponse) };
-        
-        // Convert RelayResponse to byte slice
-        let bytes: &[u8] = unsafe {
-            core::slice::from_raw_parts(relay_resp.ptr as *const u8, relay_resp.len as usize)
+        let struct_ptr = unsafe { 
+            request_host(self.url.as_ptr(), self.url.len() as u32, self.method as u32) 
         };
-        crate::log("RelayResponse created");
+        
+        if struct_ptr == 0 {
+            crate::log("Request failed");
+            return Err(RequestError::UNKNOWN);
+        }
+        
+        // Read struct from WASM memory
+        let info: &ResponseInfo = unsafe {
+            &*(struct_ptr as *const ResponseInfo)
+        };
+        
+        let body_ptr = info.ptr;
+        let body_len = info.len;
+        
+        if body_len == 0 || body_ptr == 0 {
+            crate::log("Invalid response");
+            return Err(RequestError::UNKNOWN);
+        }
+        
+        crate::log("Got response info");
+        
+        // Read body from WASM memory
+        let bytes: &[u8] = unsafe {
+            core::slice::from_raw_parts(body_ptr as *const u8, body_len as usize)
+        };
+        
+        if bytes[0] != b'{' {
+            crate::log("Not JSON");
+            return Err(RequestError::UNKNOWN);
+        }
+        
+        crate::log("Bytes look like JSON");
         
         // Convert bytes to string
         let json_str = core::str::from_utf8(bytes)
-            .map_err(|_| RequestError::InvalidUtf8)?;
-        crate::log("Json string created");
-        crate::log(json_str);
+            .map_err(|_| {
+                crate::log("UTF8 conversion failed");
+                RequestError::InvalidUtf8
+            })?;
+        
+        crate::log("UTF8 conversion OK");
+        
+        // Check string length
+        if json_str.is_empty() {
+            crate::log("String is empty");
+            return Err(RequestError::UNKNOWN);
+        }
+        
+        // Log first part of string (first 50 chars)
+        if json_str.len() > 50 {
+            crate::log(&json_str[..50]);
+        } else {
+            crate::log(json_str);
+        }
+        
+        crate::log("About to parse JSON");
         
         // Parse JSON string into HttpResponse
-        let http_resp: Result<(HttpResponseJson, usize), serde_json_core::de::Error> = serde_json_core::from_str(json_str);
+        let http_resp: Result<(HttpResponseJson, usize), serde_json_core::de::Error> = 
+            serde_json_core::from_str(json_str);
 
         match http_resp {
             Ok((http_resp, _)) => {
+                crate::log("Parse success");
                 Ok(Response {
                     status_code: http_resp.status_code,
                     body: http_resp.body.to_string(),
                 })
             }
-            Err(_) => {
-                crate::log("Error");
+            Err(e) => {
+                crate::log("Parse error");
+                // Log error type (serde_json_core has limited error info)
+                match e {
+                    serde_json_core::de::Error::EofWhileParsingValue => crate::log("EOF error"),
+                    serde_json_core::de::Error::ExpectedSomeValue => crate::log("Expected value"),
+                    _ => crate::log("Other parse error"),
+                }
                 Err(RequestError::UNKNOWN)
             }
         }

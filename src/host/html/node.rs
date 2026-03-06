@@ -1,3 +1,7 @@
+use alloc::string::ToString;
+
+use crate::ResponseInfo;
+
 #[repr(transparent)]
 #[derive(Copy, Clone)]
 pub struct HtmlNode {
@@ -6,11 +10,23 @@ pub struct HtmlNode {
 
 impl HtmlNode {
     pub fn text(&self) -> alloc::string::String {
-        let mut out_ptr: u32 = 0;
-        let len = unsafe { super::html_node_text_host(self.id, &mut out_ptr) };
+        let mut out_len: u32 = 0;
+        let struct_ptr = unsafe { super::html_node_text_host(self.id, &mut out_len) };
+        if struct_ptr == 0 {
+            crate::log("Request failed");
+            return "".to_string();
+        }
+        
+        // Read struct from WASM memory
+        let info: &ResponseInfo = unsafe {
+            &*(struct_ptr as *const ResponseInfo)
+        };
+        
+        let body_ptr = info.ptr;
+        let body_len = info.len;
 
         unsafe {
-            let slice = core::slice::from_raw_parts(out_ptr as *const u8, len as usize);
+            let slice = core::slice::from_raw_parts(body_ptr as *const u8, body_len as usize);
             alloc::string::String::from_utf8_lossy(slice).into_owned()
         }
     }
@@ -23,11 +39,23 @@ impl HtmlNode {
         let attr_len = attr.len() as u32;
 
         // Call your host function (you'll need a wasm host function like html_node_attr_host)
-        let len = unsafe { super::html_node_attr_host(self.id, attr_ptr, attr_len, &mut out_ptr) };
+        let struct_ptr = unsafe { super::html_node_attr_host(self.id, attr_ptr, attr_len, &mut out_ptr) };
+        if struct_ptr == 0 {
+            crate::log("Request failed");
+            return "".to_string();
+        }
+        
+        // Read struct from WASM memory
+        let info: &ResponseInfo = unsafe {
+            &*(struct_ptr as *const ResponseInfo)
+        };
+        
+        let body_ptr = info.ptr;
+        let body_len = info.len;
 
         // Convert the returned pointer and length into a Rust String
         unsafe {
-            let slice = core::slice::from_raw_parts(out_ptr as *const u8, len as usize);
+            let slice = core::slice::from_raw_parts(body_ptr as *const u8, body_len as usize);
             alloc::string::String::from_utf8_lossy(slice).into_owned()
         }
     }
