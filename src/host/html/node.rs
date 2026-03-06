@@ -17,7 +17,6 @@ impl HtmlNode {
             return "".to_string();
         }
         
-        // Read struct from WASM memory
         let info: &ResponseInfo = unsafe {
             &*(struct_ptr as *const ResponseInfo)
         };
@@ -34,18 +33,15 @@ impl HtmlNode {
     pub fn attr(&self, attr: &str) -> alloc::string::String {
         let mut out_ptr: u32 = 0;
 
-        // Convert the Rust &str to a pointer and length for the host
         let attr_ptr = attr.as_ptr() as u32;
         let attr_len = attr.len() as u32;
 
-        // Call your host function (you'll need a wasm host function like html_node_attr_host)
         let struct_ptr = unsafe { super::html_node_attr_host(self.id, attr_ptr, attr_len, &mut out_ptr) };
         if struct_ptr == 0 {
             crate::log("Request failed");
             return "".to_string();
         }
-        
-        // Read struct from WASM memory
+    
         let info: &ResponseInfo = unsafe {
             &*(struct_ptr as *const ResponseInfo)
         };
@@ -53,7 +49,6 @@ impl HtmlNode {
         let body_ptr = info.ptr;
         let body_len = info.len;
 
-        // Convert the returned pointer and length into a Rust String
         unsafe {
             let slice = core::slice::from_raw_parts(body_ptr as *const u8, body_len as usize);
             alloc::string::String::from_utf8_lossy(slice).into_owned()
