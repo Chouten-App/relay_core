@@ -42,7 +42,6 @@ impl Request {
             return Err(RequestError::UNKNOWN);
         }
         
-        // Read struct from WASM memory
         let info: &ResponseInfo = unsafe {
             &*(struct_ptr as *const ResponseInfo)
         };
@@ -57,7 +56,6 @@ impl Request {
         
         crate::log("Got response info");
         
-        // Read body from WASM memory
         let bytes: &[u8] = unsafe {
             core::slice::from_raw_parts(body_ptr as *const u8, body_len as usize)
         };
@@ -78,13 +76,11 @@ impl Request {
         
         crate::log("UTF8 conversion OK");
         
-        // Check string length
         if json_str.is_empty() {
             crate::log("String is empty");
             return Err(RequestError::UNKNOWN);
         }
         
-        // Log first part of string (first 50 chars)
         if json_str.len() > 50 {
             crate::log(&json_str[..50]);
         } else {
@@ -93,7 +89,6 @@ impl Request {
         
         crate::log("About to parse JSON");
         
-        // Parse JSON string into HttpResponse
         let http_resp: Result<(HttpResponseJson, usize), serde_json_core::de::Error> = 
             serde_json_core::from_str(json_str);
 
@@ -107,7 +102,6 @@ impl Request {
             }
             Err(e) => {
                 crate::log("Parse error");
-                // Log error type (serde_json_core has limited error info)
                 match e {
                     serde_json_core::de::Error::EofWhileParsingValue => crate::log("EOF error"),
                     serde_json_core::de::Error::ExpectedSomeValue => crate::log("Expected value"),

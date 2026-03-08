@@ -1,3 +1,5 @@
+use crate::ResponseInfo;
+
 use super::node::HtmlNode;
 
 #[repr(transparent)]
@@ -19,14 +21,27 @@ impl HtmlDocument {
 
     pub fn query_selector_all(&self, selector: &str) -> alloc::vec::Vec<HtmlNode> {
         let mut out_ptr: u32 = 0;
-        let len = unsafe { super::html_query_selector_all_host(self.id, selector.as_ptr(), selector.len() as u32, &mut out_ptr) };
+        let struct_ptr = unsafe { super::html_query_selector_all_host(self.id, selector.as_ptr(), selector.len() as u32, &mut out_ptr) };
 
-        if len == 0 || out_ptr == 0 {
+        if struct_ptr == 0 {
+            crate::log("Request failed");
+            return alloc::vec::Vec::new();
+        }
+        
+        let info: &ResponseInfo = unsafe {
+            &*(struct_ptr as *const ResponseInfo)
+        };
+        
+        let ptr = info.ptr;
+        let len = info.len;
+        
+        if len == 0 || ptr == 0 {
+            crate::log("Invalid response");
             return alloc::vec::Vec::new();
         }
 
         unsafe {
-            let slice = core::slice::from_raw_parts(out_ptr as *const HtmlNode, len as usize);
+            let slice = core::slice::from_raw_parts(ptr as *const HtmlNode, len as usize);
             slice.to_vec()
         }
     }
