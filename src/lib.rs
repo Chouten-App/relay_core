@@ -75,7 +75,17 @@ pub unsafe fn grow_mem(_pages: i32) -> i32 {
 pub unsafe extern "C" fn alloc(size: usize) -> *mut u8 {
     let layout = Layout::from_size_align(size, 8).unwrap();
     unsafe {
-        alloc::alloc::alloc(layout)
+        let ptr = alloc::alloc::alloc(layout);
+        if ptr.is_null() {
+            // Allocation failed — grow memory and retry
+            let pages_needed = (size + 65535) / 65536; // round up to nearest page (64KiB)
+            if grow_mem(pages_needed as i32) == -1 {
+                return core::ptr::null_mut(); // grow failed, OOM
+            }
+            alloc::alloc::alloc(layout) // retry
+        } else {
+            ptr
+        }
     }
 }
 
