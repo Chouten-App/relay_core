@@ -6,7 +6,7 @@ use core::fmt::{self, Write};
 pub fn log<S: Into<String>>(s: S) {
     let owned = s.into();
     unsafe {
-        log_host(owned.as_ptr(), owned.len().try_into().unwrap());
+        log_host(owned.as_ptr() as u32, owned.len().try_into().unwrap());
     }
     // owned is dropped *after* the call, so pointer is valid during log_host
 }

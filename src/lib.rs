@@ -1,17 +1,19 @@
 #![no_std]
 
 extern crate alloc;
-extern crate wee_alloc;
 
 pub mod host;
 pub mod types;
 pub mod macros;
 pub mod traits;
+pub mod runtime_support;
 
 // pub mod export_macro;
 
 use core::alloc::Layout;
 use core::panic::PanicInfo;
+use dlmalloc::GlobalDlmalloc;
+
 use crate::host::log::log;
 
 #[repr(C)]
@@ -48,8 +50,11 @@ pub extern "C" fn store_response(ptr: u32, len: u32) -> u32 {
     1
 }
 
+#[unsafe(no_mangle)]
+pub static __heap_end: u32 = 8 * 1024 * 1024 - 65536;
+
 #[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+static ALLOC: GlobalDlmalloc = GlobalDlmalloc;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn grow_memory(pages: u32) -> i32 {
@@ -75,17 +80,7 @@ pub unsafe fn grow_mem(_pages: i32) -> i32 {
 pub unsafe extern "C" fn alloc(size: usize) -> *mut u8 {
     let layout = Layout::from_size_align(size, 8).unwrap();
     unsafe {
-        let ptr = alloc::alloc::alloc(layout);
-        if ptr.is_null() {
-            // Allocation failed — grow memory and retry
-            let pages_needed = (size + 65535) / 65536; // round up to nearest page (64KiB)
-            if grow_mem(pages_needed as i32) == -1 {
-                return core::ptr::null_mut(); // grow failed, OOM
-            }
-            alloc::alloc::alloc(layout) // retry
-        } else {
-            ptr
-        }
+        alloc::alloc::alloc(layout)
     }
 }
 
@@ -118,6 +113,7 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 unsafe extern "C" {
-    pub fn log_host(ptr: *const u8, len: u32);
-    pub fn request_host(url_ptr: *const u8, url_len: u32, method: u32) -> u32;
+    pub fn log_host(ptr: u32, len: u32);
+    pub fn request_host(url_ptr: u32, url_len: u32, method: u32) -> u32;
+    pub fn response_get_body_as_doc_host(id: u32) -> u32;
 }

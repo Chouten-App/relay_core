@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::ResponseInfo;
 
 use super::node::HtmlNode;
@@ -10,34 +12,29 @@ pub struct HtmlDocument {
 
 impl HtmlDocument {
     pub fn parse(html: &str) -> Self {
-        let id = unsafe { super::html_parse_host(html.as_ptr(), html.len()) };
+        let id = unsafe { super::html_parse_host(html.as_ptr() as u32, html.len() as u32) };
         Self { id }
     }
 
     pub fn query_selector(&self, selector: &str) -> Option<HtmlNode> {
-        let node_id = unsafe { super::html_query_selector_host(self.id, selector.as_ptr(), selector.len()) };
+        let node_id = unsafe { super::html_query_selector_host(self.id, selector.as_ptr() as u32, selector.len() as u32) };
         if node_id == 0 { None } else { Some(HtmlNode { id: node_id }) }
     }
 
-    pub fn query_selector_all(&self, selector: &str) -> alloc::vec::Vec<HtmlNode> {
-        let mut out_ptr: u32 = 0;
-        let struct_ptr = unsafe { super::html_query_selector_all_host(self.id, selector.as_ptr(), selector.len() as u32, &mut out_ptr) };
+    pub fn query_selector_all(&self, selector: &str) -> Vec<HtmlNode> {
+        let mut len: u32 = 0;
 
-        if struct_ptr == 0 {
-            crate::log("Request failed");
-            return alloc::vec::Vec::new();
-        }
-        
-        let info: &ResponseInfo = unsafe {
-            &*(struct_ptr as *const ResponseInfo)
+        let ptr = unsafe {
+            super::html_query_selector_all_host(
+                self.id,
+                selector.as_ptr() as u32,
+                selector.len() as u32,
+                &mut len,
+            )
         };
-        
-        let ptr = info.ptr;
-        let len = info.len;
-        
-        if len == 0 || ptr == 0 {
-            crate::log("Invalid response");
-            return alloc::vec::Vec::new();
+
+        if ptr == 0 || len == 0 {
+            return Vec::new();
         }
 
         unsafe {

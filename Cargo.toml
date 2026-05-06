@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0.219", default-features = false, features = ["derive", "alloc"] }
-wee_alloc = { version = "0.4", default-features = false }
+dlmalloc = { version = "0.2", features = ["global"] }
 serde-json-core = "0.5"
 
 [profile.release]

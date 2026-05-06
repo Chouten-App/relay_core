@@ -33,8 +33,13 @@ impl Request {
     }
 
     pub fn send(self) -> Result<Response, RequestError> {
+        let id = unsafe { 
+            request_host(self.url.as_ptr() as u32, self.url.len() as u32, self.method as u32) 
+        };
+        return Ok(Response { id: id })
+        /* 
         let struct_ptr = unsafe { 
-            request_host(self.url.as_ptr(), self.url.len() as u32, self.method as u32) 
+            request_host(self.url.as_ptr() as u32, self.url.len() as u32, self.method as u32) 
         };
         
         if struct_ptr == 0 {
@@ -110,6 +115,7 @@ impl Request {
                 Err(RequestError::UNKNOWN)
             }
         }
+        */
     }
 
     pub fn set_header(mut self, key: &str, value: &str) -> Self {

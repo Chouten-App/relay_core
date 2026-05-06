@@ -1,6 +1,6 @@
 use alloc::string::String;
 use serde::{Serialize, Deserialize};
-use crate::alloc::string::ToString;
+use crate::{alloc::string::ToString, host::html::HtmlDocument};
 use alloc::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,8 +86,36 @@ impl From<RequestError> for ChoutenError {
 
 #[derive(Debug, Clone)]
 pub struct Response {
-    pub status_code: u32,
-    pub body: String,
+    pub id: u32,
+    
+    //pub status_code: u32,
+    //pub body: String,
+}
+
+impl Response {
+    pub fn status(&self) -> u32 {
+        //unsafe { super::response_get_status_host(self.id) }
+        0
+    }
+
+    #[inline(never)]
+    pub fn body_as_document(&self) -> HtmlDocument {
+        let doc_id = unsafe { super::response_get_body_as_doc_host(self.id) };
+        HtmlDocument { id: doc_id }
+    }
+
+    pub fn body(&self) -> String {
+        "".to_string()
+        /*
+        // Only call this when you genuinely need the raw string
+        let info_ptr = unsafe { super::response_get_body_raw_host(self.id) };
+        let info = unsafe { &*(info_ptr as *const ResponseInfo) };
+        let slice = unsafe { 
+            core::slice::from_raw_parts(info.ptr as *const u8, info.len as usize) 
+        };
+        String::from_utf8_lossy(slice).into_owned()
+        */
+    }
 }
 
 #[repr(u32)]
@@ -123,7 +151,6 @@ pub struct DiscoverData {
     pub poster: String,
     pub banner: Option<String>,
     pub description: String,
-    pub label: Label,
     pub indicator: Option<String>,
     pub current: Option<u32>,
     pub total: Option<u32>
